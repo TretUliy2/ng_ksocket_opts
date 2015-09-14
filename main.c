@@ -24,8 +24,13 @@ int GetKsocketTcpInfo (char path[NG_PATHSIZ]);
 static int csock, dsock; 
 
 int main ( int argc, char *argv[] ) {
-    char *socketToGet = "[17c]:";
+    char *socketToGet;
     char sockName[NG_PATHSIZ];
+    if ( argc < 2 ) {
+        socketToGet = "[98]:";
+    } else {
+        socketToGet = argv[1];
+    }
 
     memset( sockName, 0, sizeof(sockName));
     sprintf(sockName, "%s%d", "getsockopt", getpid());
@@ -315,6 +320,7 @@ int GetKsocketTcpInfo (char path[NG_PATHSIZ]) {
     info = (struct tcp_info *)((struct ng_ksocket_sockopt *)resp->data)->value;
     printf("tcpi_last_data_recv = %d", info->tcpi_last_data_recv);
     printf(" __tcpi_last_ack_recv = %d", info->__tcpi_last_ack_recv);
+    printf(" tcpi_state = %d", info->tcpi_state);
     printf(" __tcpi_unacked = %d\n", info->__tcpi_unacked);
     free(sockopt_resp);
     free(resp);
