@@ -20,6 +20,9 @@ int GetKsocketTos(char path[NG_PATHSIZ]);
 int SetKsocketKeepAlive (char path[NG_PATHSIZ]);
 int GetKsocketKeepAlive (char path[NG_PATHSIZ]); 
 int GetKsocketTcpInfo (char path[NG_PATHSIZ]);
+int GetKsocketReuseAddr (char path[NG_PATHSIZ]);
+int GetKsocketReusePort (char path[NG_PATHSIZ]);
+void tcp_info_print (struct tcp_info *);
 
 static int csock, dsock; 
 
@@ -47,7 +50,12 @@ int main ( int argc, char *argv[] ) {
     SetKsocketKeepAlive(socketToGet);
     GetKsocketKeepAlive(socketToGet);
     */
-    GetKsocketTcpInfo(socketToGet);
+    //GetKsocketTcpInfo(socketToGet);
+    GetKsocketTos(socketToGet);
+    SetKsocketTos(socketToGet);
+    GetKsocketTos(socketToGet);
+    GetKsocketReusePort(socketToGet);
+    GetKsocketReuseAddr(socketToGet);
     return 1;
 }
 /* Get Error from ksocket node if any */
@@ -74,8 +82,6 @@ int GetKsocketError(char path[NG_PATHSIZ]) {
     if (sockError != 0) { 
         printf("Error = %d string = %s\n", sockError, strerror(sockError));
     }
-
-   
     free(sockopt_resp);
     free(resp);
     return 1;
@@ -95,7 +101,6 @@ int SetKsocketTos (char path[NG_PATHSIZ]) {
 	sockopt->level = IPPROTO_IP;
 	sockopt->name = IP_TOS;
 	tos = IPTOS_DSCP_CS4;
-    NgSetDebug(3);
 	memcpy(sockopt->value, &tos, sizeof(tos));
 	if (NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_SETOPT,
 			sockopt, sizeof(sockopt_buf) ) == -1) {
@@ -151,12 +156,13 @@ int GetKsocketTos(char path[NG_PATHSIZ]) {
                         path, strerror(errno));
         return 1;
     }
-    printf("tos = %d\n", *sockopt_resp->value);    
     if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
         printf("Error while trying to get message from getsockopt\n");
         return 1;
     }
-   
+    struct ng_ksocket_sockopt *resp_sockopt = (struct ng_ksocket_sockopt *)resp->data;
+    int tos = *resp_sockopt->value;
+    printf("%s:%d tos in resp = %d\n", __FILE__, __LINE__, tos); 
     free(sockopt_resp);
     free(resp);
     
@@ -297,6 +303,58 @@ int GetKsocketKeepAlive (char path[NG_PATHSIZ]) {
     return 1;
 }
 
+int GetKsocketReusePort (char path[NG_PATHSIZ]) {
+    struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int)); 
+    struct ng_mesg *resp;
+    memset(sockopt_resp, 0, (sizeof(struct ng_ksocket_sockopt) + sizeof(int)));
+    sockopt_resp->level = SOL_SOCKET;
+    sockopt_resp->name = SO_REUSEPORT;
+    if ( NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT, 
+                            sockopt_resp, sizeof(*sockopt_resp)) == -1 ) {
+        printf("Error while trying to get sockopt from %s - %s\n", 
+                        path, strerror(errno));
+        return 1;
+    }
+    if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
+        fprintf(stderr, "Error while trying to get message from getsockopt: %s\n", strerror(errno));
+        return 1;
+    }
+    
+    int *option = (int *)(((struct ng_ksocket_sockopt *)resp->data)->value); 
+    printf("REUSEPORT = %d\n", htons(*option));
+    free(sockopt_resp);
+    free(resp);
+    return 1;
+
+}
+
+int GetKsocketReuseAddr (char path[NG_PATHSIZ]) {
+    struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int)); 
+    struct ng_mesg *resp;
+    memset(sockopt_resp, 0, sizeof(struct ng_ksocket_sockopt) + sizeof(int));
+
+    sockopt_resp->level = SOL_SOCKET;
+    sockopt_resp->name = SO_REUSEPORT;
+    if ( NgSendMsg(csock, path, NGM_KSOCKET_COOKIE, NGM_KSOCKET_GETOPT, 
+                            sockopt_resp, sizeof(*sockopt_resp)) == -1 ) {
+        printf("Error while trying to get sockopt from %s - %s\n", 
+                        path, strerror(errno));
+        return 1;
+    }
+    if ( NgAllocRecvMsg(csock, &resp, 0 ) < 0 ) {
+        fprintf(stderr, "Error while trying to get message from getsockopt: %s\n", strerror(errno));
+        return 1;
+    }
+    int *option = (int *)((struct ng_ksocket_sockopt *)&resp->data)->value; 
+    printf("REUSEADDR = %d\n", htons(*option));
+     
+    free(sockopt_resp);
+    free(resp);
+    return 1;
+
+}
+
+
 int GetKsocketTcpInfo (char path[NG_PATHSIZ]) {
     struct ng_ksocket_sockopt *sockopt_resp = malloc(sizeof(struct ng_ksocket_sockopt) + sizeof(int)); 
     struct ng_mesg *resp;
@@ -318,13 +376,23 @@ int GetKsocketTcpInfo (char path[NG_PATHSIZ]) {
     printf("resp.arglen = %d sizeof(struct tcp_info) = %d\n", resp->header.arglen, sizeof(struct tcp_info)+sizeof(struct ng_ksocket_sockopt)); 
     struct tcp_info *info;
     info = (struct tcp_info *)((struct ng_ksocket_sockopt *)resp->data)->value;
-    printf("tcpi_last_data_recv = %d", info->tcpi_last_data_recv);
-    printf(" __tcpi_last_ack_recv = %d", info->__tcpi_last_ack_recv);
-    printf(" tcpi_state = %d", info->tcpi_state);
-    printf(" __tcpi_unacked = %d\n", info->__tcpi_unacked);
+    tcp_info_print(info);
     free(sockopt_resp);
     free(resp);
     return 1;
 }
 
-
+void tcp_info_print (struct tcp_info *info) {
+    printf("strct tcp_info {\n");
+    printf("\ttcpi_state = %d\n", info->tcpi_state);
+    printf("\t__tcpi_ca_state = %d\n", info->__tcpi_ca_state);
+    printf("\t__tcpi_retransmits = %d\n", info->__tcpi_retransmits);
+    printf("\t__tcpi_probes = %d\n", info->__tcpi_probes);
+    printf("\t__tcpi_backoff = %d\n", info->__tcpi_backoff);
+    printf("\ttcpi_options = %d\n", info->tcpi_options);
+    printf("\ttcpi_rto = %d\n", info->tcpi_rto);
+    printf("\t__tcpi_ato = %d\n", info->__tcpi_ato);
+    printf("\ttcpi_snd_mss = %d\n", info->tcpi_snd_mss);
+    printf("\ttcpi_rcv_mss = %d\n", info->tcpi_rcv_mss);
+    printf("};\n");
+}
