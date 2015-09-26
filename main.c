@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <string.h>
 #include <errno.h>
 #include <netgraph.h>
@@ -430,7 +431,7 @@ int GetKsocketTcpInfo (char path[NG_PATHSIZ]) {
         fprintf(stderr, "Error while trying to get message from getsockopt: %s\n", strerror(errno));
         return 1;
     }
-    printf("resp.arglen = %d sizeof(struct tcp_info) = %d\n", resp->header.arglen, sizeof(struct tcp_info)+sizeof(struct ng_ksocket_sockopt)); 
+    printf("resp.arglen = %d sizeof(struct tcp_info) = %lu\n", resp->header.arglen, sizeof(struct tcp_info)+sizeof(struct ng_ksocket_sockopt)); 
     struct tcp_info *info;
     info = (struct tcp_info *)((struct ng_ksocket_sockopt *)resp->data)->value;
     tcp_info_print(info);
@@ -461,4 +462,5 @@ int printBytes (struct ng_ksocket_sockopt *sockopt, size_t len) {
     for (i = 0; i < value_len; i++ ) {
         fprintf(stderr, "sockopt->value[%d] = %02x\n", i, sockopt->value[i]);
     }
+    return 1;
 }

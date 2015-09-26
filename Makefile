@@ -1,5 +1,5 @@
 default:
-	cc -c main.c
+	cc -c main.c all_opts.c
 	cc -lc -lnetgraph -o main *.o
 clean:
 	rm -rf *.o *.core main
