@@ -61,7 +61,7 @@ static int csock, dsock;
 
 int get_sockopt(void);
 int get_ksockopts_all ( char path[NG_PATHSIZ] );
-int get_ksock_opt( char path[NG_PATHSIZ], int opt_level, int opt_name, void * restrict optval, socklen_t * restrict optlen );
+int get_ksock_opt( char path[NG_PATHSIZ], int opt_level, int opt_name, void * optval, socklen_t * optlen );
 
 int get_ksockopts_all ( char path[NG_PATHSIZ] ) {
     char name[NG_NODESIZ];
@@ -102,7 +102,7 @@ int get_ksockopts_all ( char path[NG_PATHSIZ] ) {
     return 1;
 }
 
-int get_ksock_opt( char path[NG_PATHSIZ], int opt_level, int opt_name, void * restrict optval, socklen_t * restrict optlen ) {
+int get_ksock_opt( char path[NG_PATHSIZ], int opt_level, int opt_name, void * optval, socklen_t * optlen ) {
     size_t total_len = sizeof(struct ng_ksocket_sockopt) + sizeof(*optlen);
     struct ng_ksocket_sockopt *sockopt = malloc(total_len);
 
